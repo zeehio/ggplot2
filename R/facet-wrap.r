@@ -11,6 +11,10 @@
 #' @param scales should Scales be fixed (\code{"fixed"}, the default),
 #'   free (\code{"free"}), or free in one dimension (\code{"free_x"},
 #'   \code{"free_y"}).
+#' @param scales_x. A named list of scales. Allows to set individual scales to
+#'   each of the panels, for instance to format labels differently on each panel.
+#' @param scales_y. A named list of scales. Allows to set individual scales to
+#'   each of the panels, for instance to format labels differently on each panel.
 #' @param switch By default, the labels are displayed on the top of
 #'   the plot. If \code{switch} is \code{"x"}, they will be displayed
 #'   to the bottom. If \code{"y"}, they will be displayed to the
@@ -73,10 +77,13 @@
 #'   geom_line() +
 #'   facet_wrap(~variable, scales = "free_y", nrow = 2, switch = "x") +
 #'   theme(strip.background = element_blank())
+#'
+#' # Use `scale_y` to
 #' }
 facet_wrap <- function(facets, nrow = NULL, ncol = NULL, scales = "fixed",
                        shrink = TRUE, labeller = "label_value", as.table = TRUE,
-                       switch = NULL, drop = TRUE, dir = "h") {
+                       switch = NULL, drop = TRUE, dir = "h", scales_x = NULL,
+                       scales_y = NULL) {
   scales <- match.arg(scales, c("fixed", "free_x", "free_y", "free"))
   dir <- match.arg(dir, c("h", "v"))
   free <- list(
@@ -104,6 +111,7 @@ facet_wrap <- function(facets, nrow = NULL, ncol = NULL, scales = "fixed",
     drop = drop, ncol = ncol, nrow = nrow,
     labeller = labeller,
     dir = dir,
+    scales_x = scales_x, scales_y = scales_y,
     subclass = "wrap"
   )
 }
@@ -117,8 +125,43 @@ facet_train_layout.wrap <- function(facet, data) {
   nrow <- max(panels$ROW)
 
   # Add scale identification
-  panels$SCALE_X <- if (facet$free$x) seq_len(n) else 1L
-  panels$SCALE_Y <- if (facet$free$y) seq_len(n) else 1L
+  if (is.null(facet$scales_x)) {
+    panels$SCALE_X <- if (facet$free$x) seq_len(n) else 1L
+  } else {
+    facet_row_names_ordered <- panels[, names(facet$facets)]
+    match_id <- match(facet_row_names_ordered, names(facet$scales_x))
+    #panels$x_scales <- lapply(match_id,
+    #                          function(x) ifelse(is.na(x), NULL, facet$scales_x[[x]]$clone()))
+    # R environmental voodoo prevents me from using lapply
+    panels$x_scales <- vector("list", n)
+    for (i in 1:length(match_id)) {
+      if (is.na(match_id[[i]])) {
+         next
+       }
+      panels$x_scales[[i]] <- facet$scales_x[[match_id[[i]]]]$clone()
+    }
+    # # R environmental voodoo prevented me from using lapply
+    panels$SCALE_X <- if (facet$free$x) seq_len(n) else 1L
+  }
+  if (is.null(facet$scales_y)) {
+    panels$SCALE_Y <- if (facet$free$y) seq_len(n) else 1L
+  } else {
+    facet_row_names_ordered <- panels[, names(facet$facets)]
+    match_id <- match(facet_row_names_ordered, names(facet$scales_y))
+    #panels$y_scales <- lapply(match_id,
+    #                          function(x) ifelse(is.na(x), NULL, facet$scales_y[[x]]$clone()))
+    # R environmental voodoo prevents me from using lapply
+    panels$y_scales <- vector("list", n)
+    for (i in 1:length(match_id)) {
+      if (is.na(match_id[[i]])) {
+        next
+      }
+      panels$y_scales[[i]] <- facet$scales_y[[match_id[[i]]]]$clone()
+    }
+    # # R environmental voodoo prevented me from using lapply
+    panels$SCALE_Y <- if (facet$free$y) seq_len(n) else 1L
+  }
+
 
   # Figure out where axes should go
   panels$AXIS_X <- if (facet$free$x) TRUE else panels$ROW == nrow

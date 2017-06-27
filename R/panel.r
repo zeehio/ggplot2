@@ -63,29 +63,56 @@ map_layout <- function(panel, facet, data) {
 train_position <- function(panel, data, x_scale, y_scale) {
   # Initialise scales if needed, and possible.
   layout <- panel$layout
-  if (is.null(panel$x_scales) && !is.null(x_scale)) {
-    panel$x_scales <- plyr::rlply(max(layout$SCALE_X), x_scale$clone())
+  if (is.null(panel$x_scales)) {
+    if (!is.null(layout$x_scales)) {
+      #panel$x_scales <- lapply(layout$x_scales,
+      #                         function(x) ifelse(is.null(x), x_scale$clone(), x))
+      # R environmental voodoo prevents me from using lapply
+      panel$x_scales <- vector("list", length(layout$x_scales))
+      for (i in 1:length(layout$x_scales)) {
+        if (is.null(layout$x_scales[[i]])) {
+          panel$x_scales[[i]] <- x_scale$clone()
+        } else {
+          panel$x_scales[[i]] <- layout$x_scales[[i]]
+        }
+      }
+      # R environmental voodoo prevented me from using lapply, I used a for loop
+    } else if (!is.null(x_scale)) {
+      panel$x_scales <- plyr::rlply(max(layout$SCALE_X), x_scale$clone())
+    }
   }
-  if (is.null(panel$y_scales) && !is.null(y_scale)) {
-    panel$y_scales <- plyr::rlply(max(layout$SCALE_Y), y_scale$clone())
+  if (is.null(panel$y_scales)) {
+    if (!is.null(layout$y_scales)) {
+      #panel$y_scales <- lapply(layout$y_scales,
+      #                         function(x) ifelse(is.null(x), y_scale$clone(), x))
+      # R environmental voodoo prevents me from using lapply
+      panel$y_scales <- vector("list", length(layout$y_scales))
+      for (i in 1:length(layout$y_scales)) {
+        if (is.null(layout$y_scales[[i]])) {
+          panel$y_scales[[i]] <- y_scale$clone()
+        } else {
+          panel$y_scales[[i]] <- layout$y_scales[[i]]
+        }
+      }
+      # R environmental voodoo prevented me from using lapply, I used a for loop
+    } else if (!is.null(y_scale)) {
+      panel$y_scales <- plyr::rlply(max(layout$SCALE_Y), y_scale$clone())
+    }
   }
 
   # loop over each layer, training x and y scales in turn
   for (layer_data in data) {
-
     match_id <- match(layer_data$PANEL, layout$PANEL)
 
     if (!is.null(x_scale)) {
       x_vars <- intersect(x_scale$aesthetics, names(layer_data))
       SCALE_X <- layout$SCALE_X[match_id]
-
       scale_apply(layer_data, x_vars, "train", SCALE_X, panel$x_scales)
     }
 
     if (!is.null(y_scale)) {
       y_vars <- intersect(y_scale$aesthetics, names(layer_data))
       SCALE_Y <- layout$SCALE_Y[match_id]
-
       scale_apply(layer_data, y_vars, "train", SCALE_Y, panel$y_scales)
     }
   }

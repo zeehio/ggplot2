@@ -122,7 +122,9 @@
 #' mg + facet_grid(vs + am ~ gear, margins = c("gear", "am"))
 #' }
 #' @importFrom plyr as.quoted
-facet_grid <- function(facets, margins = FALSE, scales = "fixed", space = "fixed", shrink = TRUE, labeller = "label_value", as.table = TRUE, switch = NULL, drop = TRUE) {
+facet_grid <- function(facets, margins = FALSE, scales = "fixed", space = "fixed",
+                       shrink = TRUE, labeller = "label_value", as.table = TRUE,
+                       switch = NULL, drop = TRUE, scales_x = NULL, scales_y = NULL) {
   scales <- match.arg(scales, c("fixed", "free_x", "free_y", "free"))
   free <- list(
     x = any(scales %in% c("free_x", "free")),
@@ -164,6 +166,7 @@ facet_grid <- function(facets, margins = FALSE, scales = "fixed", space = "fixed
     rows = rows, cols = cols, margins = margins, shrink = shrink,
     free = free, space_free = space_free, labeller = labeller,
     as.table = as.table, switch = switch, drop = drop,
+    scales_x = scales_x, scales_y = scales_y,
     subclass = "grid"
   )
 }
@@ -174,9 +177,50 @@ facet_train_layout.grid <- function(facet, data) {
   layout <- layout_grid(data, facet$rows, facet$cols, facet$margins,
     drop = facet$drop, as.table = facet$as.table)
 
-  # Relax constraints, if necessary
-  layout$SCALE_X <- if (facet$free$x) layout$COL else 1L
-  layout$SCALE_Y <- if (facet$free$y) layout$ROW else 1L
+  if (is.null(facet$scales_x)) {
+    layout$SCALE_X <- if (facet$free$x) layout$COL else 1L
+  } else {
+    tmpdf <- unique(layout[,c("COL", names(facet$cols))])
+    facet_col_names_ordered <- tmpdf[order(tmpdf$COL), names(facet$cols), drop=TRUE]
+    match_id <- match(facet_col_names_ordered, names(facet$scales_x))
+    #layout$x_scales <- lapply(match_id,
+    #                          function(x) ifelse(is.na(x), NULL, facet$scales_x[[x]]$clone()))
+    # R environmental voodoo prevents me from using lapply
+    layout$x_scales <- vector("list", max(layout$COL))
+    for (i in 1:length(match_id)) {
+      if (is.na(match_id[[i]])) {
+        next
+      }
+      layout$x_scales[[i]] <- facet$scales_x[[match_id[[i]]]]$clone()
+    }
+    # R environmental voodoo prevented me from using lapply
+    layout$SCALE_X <- layout$COL
+  }
+  if (is.null(facet$scales_y)) {
+    layout$SCALE_Y <- if (facet$free$y) layout$ROW else 1L
+  } else {
+    tmpdf <- unique(layout[,c("ROW", names(facet$rows))])
+    facet_row_names_ordered <- tmpdf[order(tmpdf$ROW), names(facet$rows), drop=TRUE]
+    match_id <- match(facet_row_names_ordered, names(facet$scales_y))
+
+    layout$y_scales <- lapply(match_id,
+                              function(x) {
+                                if(is.na(x)) {
+                                  return(NULL)
+                                } else {
+                                  return(facet$scales_y[[x]]$clone())
+                                }
+                                })
+    a2 <- lapply(facet$scales_y[match_id],
+                 function(x) {
+                   if(is.null(x)) {
+                     return(NULL)
+                   } else {
+                     return(x$clone())
+                   }
+                 })
+    layout$SCALE_Y <- layout$ROW
+  }
 
   layout
 }

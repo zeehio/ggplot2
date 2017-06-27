@@ -6,7 +6,7 @@
 \usage{
 facet_grid(facets, margins = FALSE, scales = "fixed", space = "fixed",
   shrink = TRUE, labeller = "label_value", as.table = TRUE,
-  switch = NULL, drop = TRUE)
+  switch = NULL, drop = TRUE, scales_x = NULL, scales_y = NULL)
 }
 \arguments{
 \item{facets}{a formula with the rows (of the tabular display) on the LHS
