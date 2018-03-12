@@ -43,3 +43,16 @@ test_that("curved lines in map projections", {
     nzmap + coord_map(projection = 'azequalarea', orientation = c(-36.92, 174.6, 0))
   )
 })
+
+test_that("geom_hline and geom_vline accept POSIXct as intercept", {
+  xdf <- data.frame(
+    datetime = seq(as.POSIXct('2015-01-01'), length.out = 5, by = 'day'))
+  plt <- ggplot(xdf, aes(datetime, datetime)) +
+    geom_point() +
+    geom_vline(aes(xintercept = datetime)) +
+    geom_hline(aes(yintercept = datetime)) + scale_x_datetime() + scale_y_datetime()
+  plt_build <- ggplot_build(plt)
+  expect_true(inherits(plt_build$data[[2]]$xintercept, "POSIXct"))
+  expect_true(inherits(plt_build$data[[3]]$yintercept, "POSIXct"))
+})
+
